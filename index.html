@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trident - نظام إدارة المخازن والمبيعات</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; margin: 0; }
+        .card { background: #1e293b; padding: 25px; border-radius: 12px; margin-top: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h1 { color: #38bdf8; margin-bottom: 10px; }
+        p { color: #94a3b8; font-size: 18px; }
+        .status { margin-top: 20px; font-weight: bold; color: #4ade80; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>نظام Trident للمخازن</h1>
+        <p>مرحباً بك! تم ربط التطبيق بقاعدة البيانات السحابية بنجاح.</p>
+        <div class="status" id="db-status">جاري الاتصال بقاعدة البيانات...</div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://pmwsjdproufzvckwivmz.supabase.co';
+        const SUPABASE_KEY = 'Sb_publishable_MI1KWfcm4U-dkLG_H2sEOQ_3KA90KPc';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function checkConnection() {
+            const { data, error } = await supabase.from('warehouses').select('*');
+            const statusEl = document.getElementById('db-status');
+            if (error) {
+                statusEl.innerText = 'خطأ في الاتصال بقاعدة البيانات';
+                statusEl.style.color = '#ef4444';
+            } else {
+                statusEl.innerText = '✅ متصل بقاعدة البيانات بنجاح!';
+            }
+        }
+        checkConnection();
+    </script>
+</body>
+</html>

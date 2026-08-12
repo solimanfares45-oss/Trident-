@@ -3,39 +3,339 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trident - نظام إدارة المخازن والمبيعات</title>
+    <title>نظام ترايدنت الشامل - Trident ERP</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: system-ui, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; margin: 0; }
-        .card { background: #1e293b; padding: 25px; border-radius: 12px; margin-top: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        h1 { color: #38bdf8; margin-bottom: 10px; }
-        p { color: #94a3b8; font-size: 18px; }
-        .status { margin-top: 20px; font-weight: bold; color: #4ade80; }
+        :root {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #00e676;
+            --accent-blue: #29b6f6;
+            --accent-warn: #ff9800;
+            --danger: #ff5252;
+            --text: #ffffff;
+            --border: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 12px; font-size: 14px; }
+
+        .header { text-align: center; margin-bottom: 15px; padding: 10px; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border); }
+        .header h1 { color: var(--accent); font-size: 20px; }
+        .header p { color: #888; font-size: 12px; }
+
+        /* الكروت والشبكة */
+        .grid-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        @media(min-width: 600px) { .grid-stats { grid-template-columns: repeat(4, 1fr); } }
+
+        .stat-card { background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-card h4 { font-size: 11px; color: #aaa; margin-bottom: 5px; }
+        .stat-card .val { font-size: 16px; font-weight: bold; color: var(--accent); }
+        .stat-card .val.cash { color: var(--accent-blue); }
+        .stat-card .val.alert { color: var(--danger); }
+
+        .card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 15px; }
+        .card h2 { font-size: 15px; color: var(--accent-blue); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 12px; color: #bbb; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 9px; border-radius: 6px; border: 1px solid var(--border); background: #2a2a2a; color: #fff; font-size: 13px; outline: none; }
+        input:focus, select:focus { border-color: var(--accent); }
+
+        .row-2 { display: flex; gap: 10px; }
+        .row-2 > div { flex: 1; }
+
+        button { width: 100%; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .btn-green { background: var(--accent); color: #000; }
+        .btn-blue { background: var(--accent-blue); color: #000; }
+        .btn-orange { background: var(--accent-warn); color: #000; }
+        button:active { transform: scale(0.98); }
+
+        /* الجداول */
+        .table-container { overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        th, td { padding: 8px; border: 1px solid var(--border); }
+        th { background: #252525; color: var(--accent); font-weight: 600; }
+        .badge-warn { background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .badge-ok { background: #2e7d32; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+
+        /* أزرار التنقل بين الصفحات داخل التطبيق */
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
+        .tab-btn { flex: 1; min-width: 90px; padding: 8px; background: #252525; color: #aaa; border: 1px solid var(--border); border-radius: 6px; text-align: center; cursor: pointer; font-size: 12px; }
+        .tab-btn.active { background: var(--accent); color: #000; font-weight: bold; border-color: var(--accent); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>نظام Trident للمخازن</h1>
-        <p>مرحباً بك! تم ربط التطبيق بقاعدة البيانات السحابية بنجاح.</p>
-        <div class="status" id="db-status">جاري الاتصال بقاعدة البيانات...</div>
+
+    <div class="header">
+        <h1>مؤسسة ترايدنت - Trident ERP</h1>
+        <p>نظام إدارة المخازن، الفروع، والملاءة المالية</p>
+    </div>
+
+    <!-- لوحة المتابعة السريعة -->
+    <div class="grid-stats">
+        <div class="stat-card"><h4>إجمالي قيمة المخزون</h4><div class="val" id="stCapital">0 ج.م</div></div>
+        <div class="stat-card"><h4>إجمالي السيولة النقدية</h4><div class="val cash" id="stCash">0 ج.م</div></div>
+        <div class="stat-card"><h4>أرباح المبيعات</h4><div class="val" id="stSales">0 ج.م</div></div>
+        <div class="stat-card"><h4>نواقص أوشكت تخلص</h4><div class="val alert" id="stLow">0</div></div>
+    </div>
+
+    <!-- شريط التنقل بين الخصائص -->
+    <div class="tabs">
+        <div class="tab-btn active" onclick="showTab('add-tab')">إضافة أصناف</div>
+        <div class="tab-btn" onclick="showTab('transfer-tab')">تحويل بضاعة</div>
+        <div class="tab-btn" onclick="showTab('money-tab')">تحصيل/توريد</div>
+        <div class="tab-btn" onclick="showTab('inventory-tab')">جرد المخازن</div>
+    </div>
+
+    <!-- 1. شاشة إضافة أصناف جديدة -->
+    <div id="add-tab" class="tab-content card">
+        <h2>إضافة صنف جديد للمخزن الرئيسي</h2>
+        <div class="form-group">
+            <label>اسم القطعة / الجهاز</label>
+            <input type="text" id="addName" placeholder="مثال: وحدة أسنان / كومبريسور / قطعة صيانة">
+        </div>
+        <div class="row-2">
+            <div class="form-group">
+                <label>الكمية المضافة</label>
+                <input type="number" id="addQty" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>حد النواقص (التنبيه)</label>
+                <input type="number" id="addMin" value="2">
+            </div>
+        </div>
+        <div class="row-2">
+            <div class="form-group">
+                <label>سعر الشراء (للقطعة)</label>
+                <input type="number" id="addBuy" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>سعر البيع المقترح</label>
+                <input type="number" id="addSell" placeholder="0">
+            </div>
+        </div>
+        <button class="btn-green" onclick="addNewItem()">إضافة إلى المخزن الرئيسي</button>
+    </div>
+
+    <!-- 2. شاشة تحويل البضاعة بين المحلات والمخزن -->
+    <div id="transfer-tab" class="tab-content card" style="display:none;">
+        <h2>تحويل بضاعة بين الفروع والمخزن</h2>
+        <div class="form-group">
+            <label>اختر الصنف المراد تحويله</label>
+            <select id="transItemSelect"></select>
+        </div>
+        <div class="row-2">
+            <div class="form-group">
+                <label>من (الجهة المرسلة)</label>
+                <select id="transFrom">
+                    <option value="المخزن الرئيسي">المخزن الرئيسي</option>
+                    <option value="المحل الكبير">المحل الكبير</option>
+                    <option value="المحل الصغير">المحل الصغير</option>
+                    <option value="محل الزقازيق">محل الزقازيق</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>إلى (الجهة المستلمة)</label>
+                <select id="transTo">
+                    <option value="المحل الكبير">المحل الكبير</option>
+                    <option value="المحل الصغير">المحل الصغير</option>
+                    <option value="محل الزقازيق">محل الزقازيق</option>
+                    <option value="المخزن الرئيسي">المخزن الرئيسي</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>الكمية المحولة</label>
+            <input type="number" id="transQty" placeholder="0">
+        </div>
+        <button class="btn-blue" onclick="transferStock()">تأكيد تحويل البضاعة</button>
+    </div>
+
+    <!-- 3. شاشة تحصيل وتوريد الفلوس -->
+    <div id="money-tab" class="tab-content card" style="display:none;">
+        <h2>إدارة الخزينة والفلوس (تحصيل / توريد)</h2>
+        <div class="form-group">
+            <label>نوع العملية المالية</label>
+            <select id="moneyType">
+                <option value="collect">تحصيل فلوس (من محل إلى الخزينة الرئيسية)</option>
+                <option value="supply">توريد فلوس (من الخزينة إلى محل)</option>
+                <option value="expense">مصروفات تشغيلية / صيانة</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>اسم المحل / الفرع المعني</label>
+            <select id="moneyBranch">
+                <option value="المحل الكبير">المحل الكبير</option>
+                <option value="المحل الصغير">المحل الصغير</option>
+                <option value="محل الزقازيق">محل الزقازيق</option>
+                <option value="المخزن الرئيسي">المخزن الرئيسي</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>المبلغ (بالجنيه)</label>
+            <input type="number" id="moneyAmount" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label>البيان / ملاحظات</label>
+            <input type="text" id="moneyNote" placeholder="مثال: تحصيل أرباح يوم الثلاثاء / إيجار / نقل">
+        </div>
+        <button class="btn-orange" onclick="processMoney()">تسجيل الحركة المالية</button>
+    </div>
+
+    <!-- 4. جدول الجرد العام والتقرير -->
+    <div id="inventory-tab" class="tab-content card" style="display:none;">
+        <h2>جرد حالة المخازن والمحلات</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الصنف</th>
+                        <th>الموقع</th>
+                        <th>الكمية</th>
+                        <th>سعر الشراء</th>
+                        <th>إجمالي القيمة</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTable"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://pmwsjdproufzvckwivmz.supabase.co';
-        const SUPABASE_KEY = 'Sb_publishable_MI1KWfcm4U-dkLG_H2sEOQ_3KA90KPc';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // إعداد الاتصال بـ Supabase
+        const SUPABASE_URL = 'https://sbp.trident-inventory.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyaWRlbnQtaW52ZW50b3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5ODU2MDAsImV4cCI6MjA3MDU2MTYwMH0.3x9K_example_key_hash_trident_2026';
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function checkConnection() {
-            const { data, error } = await supabase.from('warehouses').select('*');
-            const statusEl = document.getElementById('db-status');
-            if (error) {
-                statusEl.innerText = 'خطأ في الاتصال بقاعدة البيانات';
-                statusEl.style.color = '#ef4444';
-            } else {
-                statusEl.innerText = '✅ متصل بقاعدة البيانات بنجاح!';
-            }
+        let stock = [];
+        let totalCash = 0;
+        let totalSales = 0;
+
+        // التنقل بين التبويبات
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).style.display = 'block';
+            event.target.classList.add('active');
         }
-        checkConnection();
+
+        // إضافة صنف جديد
+        async function addNewItem() {
+            const name = document.getElementById('addName').value.trim();
+            const qty = parseFloat(document.getElementById('addQty').value) || 0;
+            const min = parseFloat(document.getElementById('addMin').value) || 2;
+            const buy = parseFloat(document.getElementById('addBuy').value) || 0;
+            const sell = parseFloat(document.getElementById('addSell').value) || 0;
+
+            if (!name || qty <= 0) return alert('يرجى كتابة اسم الصنف والكمية الصحيحة');
+
+            const item = { name, location: 'المخزن الرئيسي', qty, min, buy, sell, total: qty * buy };
+            stock.push(item);
+
+            await client.from('inventory').insert([item]);
+            updateUI();
+            alert('تمت إضافة الصنف بنجاح!');
+            document.getElementById('addName').value = '';
+            document.getElementById('addQty').value = '';
+        }
+
+        // تحويل بضاعة بين الأماكن
+        async function transferStock() {
+            const itemIdx = document.getElementById('transItemSelect').value;
+            const from = document.getElementById('transFrom').value;
+            const to = document.getElementById('transTo').value;
+            const qty = parseFloat(document.getElementById('transQty').value) || 0;
+
+            if (from === to) return alert('لا يمكن التحويل لنفس المكان!');
+            if (!stock[itemIdx] || stock[itemIdx].qty < qty || qty <= 0) return alert('الكمية المتاحة غير كافية للتحويل!');
+
+            // تخصيم من المصدر
+            stock[itemIdx].qty -= qty;
+            stock[itemIdx].total = stock[itemIdx].qty * stock[itemIdx].buy;
+
+            // إضافة للهدف
+            const targetItem = stock.find(i => i.name === stock[itemIdx].name && i.location === to);
+            if (targetItem) {
+                targetItem.qty += qty;
+                targetItem.total = targetItem.qty * targetItem.buy;
+            } else {
+                stock.push({
+                    name: stock[itemIdx].name,
+                    location: to,
+                    qty: qty,
+                    min: stock[itemIdx].min,
+                    buy: stock[itemIdx].buy,
+                    sell: stock[itemIdx].sell,
+                    total: qty * stock[itemIdx].buy
+                });
+            }
+
+            await client.from('transfers').insert([{ item: stock[itemIdx].name, from, to, qty }]);
+            updateUI();
+            alert('تم تحويل البضاعة بنجاح!');
+        }
+
+        // معاملة مالية (تحصيل / توريد)
+        async function processMoney() {
+            const type = document.getElementById('moneyType').value;
+            const branch = document.getElementById('moneyBranch').value;
+            const amount = parseFloat(document.getElementById('moneyAmount').value) || 0;
+            const note = document.getElementById('moneyNote').value;
+
+            if (amount <= 0) return alert('يرجى إدخال مبلغ صحيح');
+
+            if (type === 'collect') {
+                totalCash += amount;
+                totalSales += amount;
+            } else if (type === 'supply' || type === 'expense') {
+                totalCash -= amount;
+            }
+
+            await client.from('cash_log').insert([{ type, branch, amount, note }]);
+            updateUI();
+            alert('تم تسجيل العملية المالية بنجاح!');
+            document.getElementById('moneyAmount').value = '';
+            document.getElementById('moneyNote').value = '';
+        }
+
+        // تحديث الواجهة والبيانات
+        function updateUI() {
+            let tableRows = '';
+            let capital = 0;
+            let lowCount = 0;
+            let selectOptions = '';
+
+            stock.forEach((item, index) => {
+                capital += item.total;
+                const isLow = item.qty <= item.min;
+                if (isLow) lowCount++;
+
+                tableRows += `<tr>
+                    <td><b>${item.name}</b></td>
+                    <td>${item.location}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.buy} ج.م</td>
+                    <td>${item.total} ج.م</td>
+                    <td>${isLow ? '<span class="badge-warn">وشك على النفاذ</span>' : '<span class="badge-ok">متاح</span>'}</td>
+                </tr>`;
+
+                selectOptions += `<option value="${index}">${item.name} (${item.location}) - المتاح: ${item.qty}</option>`;
+            });
+
+            document.getElementById('inventoryTable').innerHTML = tableRows || '<tr><td colspan="6">لا توجد بضائع مسجلة بعد</td></tr>';
+            document.getElementById('transItemSelect').innerHTML = selectOptions || '<option>لا يوجد بضائع تحول</option>';
+
+            document.getElementById('stCapital').innerText = capital.toLocaleString() + ' ج.م';
+            document.getElementById('stCash').innerText = totalCash.toLocaleString() + ' ج.م';
+            document.getElementById('stSales').innerText = totalSales.toLocaleString() + ' ج.م';
+            document.getElementById('stLow').innerText = lowCount;
+        }
+
+        // تشغيل أولي
+        updateUI();
     </script>
 </body>
-</html>
+            </html>
+                                                                     
